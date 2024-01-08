@@ -7,20 +7,22 @@
 // CW2USBKB
 //  by KK7JXG
 //  2021-03-20
-//  version 0.5
+//  version 1.0
 //
-//  This is a simple program to convert a straight key or
-//  paddle to a USB keyboard for use with a computer or phone.
+//  This is a simple program to connect a straight key or paddle
+//  to a phone via a USB cable.  The program is currently configured
+//  for Morse Mainia.
 //
 //*****************************************************************
 
-int ProgramState = 0;
 char MorseCode[100] = "";
-char CovertString[100] = "";
+char ConvertString[100] = "";
 
-static uint8_t PADDLE1StateLast = 0;
-static uint8_t PADDLE2StateLast = 0;
-static uint8_t PADDLEState;
+static uint8_t ProgramState = 0; // Inital State is 0, 1 is Setup Mode, 2 is Straight Key Mode, 3 is Paddle Mode
+static uint8_t PADDLE1StateLast;
+static uint8_t PADDLE2StateLast;
+static uint8_t PADDLE1State;
+static uint8_t PADDLE2State;
 
 void blink_led_morse(char *morse_code)
 {
@@ -43,7 +45,7 @@ void blink_led_morse(char *morse_code)
         }
         else if (morse_code[i] == ' ')
         {
-            delay(300);
+            delay(210);
         }
         i++;
     }
@@ -52,6 +54,7 @@ void blink_led_morse(char *morse_code)
 void Convert_char_to_Morse(char *input, char *output)
 {
     int i = 0;
+    output[0] = '\0'; // clear the output string
     while (input[i] != '\0')
     {
         if (input[i] == 'a' || input[i] == 'A')
@@ -288,6 +291,7 @@ void Convert_char_to_Morse(char *input, char *output)
 
 void setup()
 {
+    // Initialize the Keyboard library
     Keyboard.begin();
     // Set pin to input
     pinMode(PADDLE1_PIN, INPUT);
@@ -301,6 +305,49 @@ void setup()
 
     // setup LED for for output
     pinMode(LED_BUILTIN, OUTPUT);
+
+    PADDLE1State = PADDLE1StateLast = digitalRead(PADDLE1_PIN);
+    PADDLE2State = PADDLE2StateLast = digitalRead(PADDLE2_PIN);
+}
+
+void setup_mode()
+{
+
+    // Choose between Straight Key or Paddle Mode
+    while (ProgramState == 1)
+    {
+        PADDLE1State = digitalRead(PADDLE1_PIN);
+        PADDLE2State = digitalRead(PADDLE2_PIN);
+
+        if (PADDLE1State != PADDLE1StateLast)
+        {
+            PADDLE1StateLast = PADDLE1State;
+
+            if (PADDLE1State == 0)
+            {
+                ProgramState = 2;
+                strcpy(ConvertString, "sk");
+                Convert_char_to_Morse(ConvertString, MorseCode);
+                blink_led_morse(MorseCode);
+            }
+        }
+
+        if (PADDLE2State != PADDLE2StateLast)
+        {
+            PADDLE2StateLast = PADDLE2State;
+
+            if (PADDLE2State == 0)
+            {
+                ProgramState = 3;
+                strcpy(ConvertString, "p");
+                Convert_char_to_Morse(ConvertString, MorseCode);
+                blink_led_morse(MorseCode);
+            }
+        }
+    }
+
+    PADDLE1State = PADDLE1StateLast = digitalRead(PADDLE1_PIN);
+    PADDLE2State = PADDLE2StateLast = digitalRead(PADDLE2_PIN);
 }
 
 void loop()
@@ -308,27 +355,75 @@ void loop()
     if (ProgramState == 0)
     {
         delay(1000);
-        // Keyboard.print("Hello World");
-        strcpy(CovertString, "KK7JXG");
-        Convert_char_to_Morse(CovertString, MorseCode);
+
+        // Use the built in LED to show the program is running
+
+        strcpy(ConvertString, "77");
+        Convert_char_to_Morse(ConvertString, MorseCode);
         blink_led_morse(MorseCode);
         ProgramState = 1;
+        /*
+        Keyboard.println("Initialized");
+        Keyboard.print("Program State: ");
+        Keyboard.println(ProgramState);
+        Keyboard.print("PADDLE1State: ");
+        Keyboard.println(PADDLE1State);
+        Keyboard.print("PADDLE1StateLast: ");
+        Keyboard.println(PADDLE1StateLast);
+        Keyboard.print("PADDLE2State: ");
+        Keyboard.println(PADDLE2State);
+        Keyboard.print("PADDLE2StateLast: ");
+        Keyboard.println(PADDLE2StateLast);
+        */
     }
 
-    PADDLEState = digitalRead(PADDLE1_PIN);
-    if (PADDLEState != PADDLE1StateLast)
+    if (ProgramState == 1)
     {
-        PADDLE1StateLast = PADDLEState;
+        delay(1000);
+        // Use the built in LED to show the program is in Setup Mode
+        strcpy(ConvertString, "s or p");
+        Convert_char_to_Morse(ConvertString, MorseCode);
+        blink_led_morse(MorseCode);
+        setup_mode();
+    }
 
-        if (PADDLEState == 0)
+    PADDLE1State = digitalRead(PADDLE1_PIN);
+    PADDLE2State = digitalRead(PADDLE2_PIN);
+
+    if (PADDLE1State != PADDLE1StateLast)
+    {
+        PADDLE1StateLast = PADDLE1State;
+
+        if (PADDLE1State == 0 && ProgramState == 2)
         {
             Keyboard.press(' ');
+        }
+        else
+        {
+            Keyboard.release(' ');
+        }
 
-            while (PADDLEState == 0)
-            {
-                PADDLEState = digitalRead(PADDLE1_PIN);
-            }
-            Keyboard.releaseAll();
+        if (PADDLE1State == 0 && ProgramState == 3)
+        {
+            Keyboard.press('a');
+        }
+        else
+        {
+            Keyboard.release('a');
+        }
+    }
+
+    if (PADDLE2State != PADDLE2StateLast)
+    {
+        PADDLE2StateLast = PADDLE2State;
+
+        if (PADDLE2State == 0)
+        {
+            Keyboard.press('s');
+        }
+        else
+        {
+            Keyboard.release('s');
         }
     }
 
