@@ -1,0 +1,6 @@
+{
+    "configuration": "usbstack=arduino,debug=off,sercom4=include",
+    "board": "Seeeduino:samd:seeed_XIAO_m0",
+    "port": "/dev/ttyACM0",
+    "sketch": "cw2usbkb.ino"
+}
