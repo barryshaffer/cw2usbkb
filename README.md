@@ -52,6 +52,10 @@ The smaller, white, 30awg wires connect the tip and ring switches to ground so I
 
 ![Completed gadget](./images/complete_gadget.jpg "Nice and compact!")
 
+Here it is along side the phone:
+
+![](./images/with_phone.png "small little guy")
+
 I did mask the backside of the beakout board so that the solder connections would not short out against the metal case of the seeduino it was getting welded to. 
 
 ![](./images/masking.jpg "careful these don't short")
