@@ -17,26 +17,31 @@ Morse Mainia or Vband
 
 The device is powered over USB C. 
 
-All prompts are conveyed via the built in LED using Morse Code (of course!) 
+All prompts are conveyed via the built in LED using Morse Code (of course!) AND via keyboard output so placing the cusor in the practice text box in VBAND works great.
+
 
 On power up '77' is sent via LED (Long live CW!)
 
 Next the LED will prompt 's or p' for mode selection.
 
-  * Sending a 'dit' on a straight key will select straight key mode.
-    * Straight key mode sends `space bar` presses
+  * A short closure (<250ms) on a straight key will select straight key 'Mainia' mode.
+    * Straight key Manina mode sends `space bar` presses
+    * A longer closure will put the device in 'VBAND Mode' which sends Left Control presses.
 
-  * Sending a 'dah' on a paddle (right paddle) will select paddle mode.
+  * A short closure (<250ms) on the right paddle will select paddle 'Mainia mode.
       * Paddle mode will send an `a` for the left paddle and a `s` for the right 
+      * A longer press will put the device in 'VBAND' mode which sends Left and Right Control key presses. 
 
+![](./images/VBAND.png "")
 You are now ready to play!
 
 
 # History
 
-**1.0 8JAN2023** Initial relase
+**1.0 8JAN2024** Initial relase
   functional. works with staight key or paddle. Only a single output configuration based off of Morse Mainia for Android. Straight key send space bar, left paddle sends 'a' right paddle sends 's'.
-
+  
+**1.1 12JAN2024** - Added VBAND Configuration and Changed Mode Selection Method
 # Parts List
 
   * 'Seeduino' XIAO SAMD21 [Seeed Studio](https://www.seeedstudio.com/Seeeduino-XIAO-Arduino-Microcontroller-SAMD21-Cortex-M0+-p-4426.html)

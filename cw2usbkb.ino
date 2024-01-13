@@ -2,6 +2,7 @@
 #include <string>
 #define PADDLE1_PIN 6 // Pin 6, tip, Single Key
 #define PADDLE2_PIN 7 // Pin 7, Dash, ring, Paddle
+#define CUR_VERSION "1.1"
 //*****************************************************************
 //
 // CW2USBKB
@@ -17,6 +18,11 @@
 
 char MorseCode[100] = "";
 char ConvertString[100] = "";
+int CurrentTimeMS = 0;
+int LastTimeMS = 0;
+int DitTimeMS = 0;
+int AvgDitTimeMS = 0;
+int AvgDahTimeMS = 0;
 
 static uint8_t ProgramState = 0; // Inital State is 0, 1 is Setup Mode, 2 is Straight Key Mode, 3 is Paddle Mode
 static uint8_t PADDLE1StateLast;
@@ -308,12 +314,11 @@ void setup()
 
     PADDLE1State = PADDLE1StateLast = digitalRead(PADDLE1_PIN);
     PADDLE2State = PADDLE2StateLast = digitalRead(PADDLE2_PIN);
+    LastTimeMS = CurrentTimeMS = millis();
 }
 
-void setup_mode()
+void setup_mode() // Choose between Straight Key or Paddle and Mainia or VBand Mode
 {
-
-    // Choose between Straight Key or Paddle Mode
     while (ProgramState == 1)
     {
         PADDLE1State = digitalRead(PADDLE1_PIN);
@@ -325,10 +330,31 @@ void setup_mode()
 
             if (PADDLE1State == 0)
             {
-                ProgramState = 2;
-                strcpy(ConvertString, "sk");
-                Convert_char_to_Morse(ConvertString, MorseCode);
-                blink_led_morse(MorseCode);
+                LastTimeMS = millis();
+            }
+
+            else
+            {
+                CurrentTimeMS = millis();
+                DitTimeMS = CurrentTimeMS - LastTimeMS;
+                Keyboard.println(DitTimeMS);
+                if (DitTimeMS < 250)
+                {
+                    ProgramState = 2;
+                    strcpy(ConvertString, "s2");
+
+                    Convert_char_to_Morse(ConvertString, MorseCode);
+                    blink_led_morse(MorseCode);
+                    Keyboard.println("Straight Key Mainina Mode");
+                }
+                else
+                {
+                    ProgramState = 4;
+                    strcpy(ConvertString, "s4");
+                    Convert_char_to_Morse(ConvertString, MorseCode);
+                    blink_led_morse(MorseCode);
+                    Keyboard.println("Straight Key VBand Mode");
+                }
             }
         }
 
@@ -338,18 +364,34 @@ void setup_mode()
 
             if (PADDLE2State == 0)
             {
-                ProgramState = 3;
-                strcpy(ConvertString, "p");
-                Convert_char_to_Morse(ConvertString, MorseCode);
-                blink_led_morse(MorseCode);
+                LastTimeMS = millis();
+            }
+            else
+            {
+                CurrentTimeMS = millis();
+                DitTimeMS = CurrentTimeMS - LastTimeMS;
+                if (DitTimeMS < 250)
+                {
+                    ProgramState = 3;
+                    strcpy(ConvertString, "3");
+                    Convert_char_to_Morse(ConvertString, MorseCode);
+                    blink_led_morse(MorseCode);
+                    Keyboard.println("Paddle Mainina Mode");
+                }
+                else
+                {
+                    ProgramState = 4;
+                    strcpy(ConvertString, "4");
+                    Convert_char_to_Morse(ConvertString, MorseCode);
+                    blink_led_morse(MorseCode);
+                    Keyboard.println("Paddle VBand Mode");
+                }
             }
         }
+
+        delay(20); // this was needed to debounce the paddle
     }
-
-    PADDLE1State = PADDLE1StateLast = digitalRead(PADDLE1_PIN);
-    PADDLE2State = PADDLE2StateLast = digitalRead(PADDLE2_PIN);
 }
-
 void loop()
 {
     if (ProgramState == 0)
@@ -359,28 +401,20 @@ void loop()
         // Use the built in LED to show the program is running
 
         strcpy(ConvertString, "77");
+        Keyboard.print(ConvertString);
+        Keyboard.print(" - CW2USBKB");
+        Keyboard.println(CUR_VERSION);
         Convert_char_to_Morse(ConvertString, MorseCode);
         blink_led_morse(MorseCode);
         ProgramState = 1;
-        /*
-        Keyboard.println("Initialized");
-        Keyboard.print("Program State: ");
-        Keyboard.println(ProgramState);
-        Keyboard.print("PADDLE1State: ");
-        Keyboard.println(PADDLE1State);
-        Keyboard.print("PADDLE1StateLast: ");
-        Keyboard.println(PADDLE1StateLast);
-        Keyboard.print("PADDLE2State: ");
-        Keyboard.println(PADDLE2State);
-        Keyboard.print("PADDLE2StateLast: ");
-        Keyboard.println(PADDLE2StateLast);
-        */
     }
 
     if (ProgramState == 1)
     {
         delay(1000);
         // Use the built in LED to show the program is in Setup Mode
+        Keyboard.println("Select Mainia mode with a short press (<250ms) of a Straight key or Right paddle");
+        Keyboard.println("Longer press (>250ms) will select VBand mode");
         strcpy(ConvertString, "s or p");
         Convert_char_to_Morse(ConvertString, MorseCode);
         blink_led_morse(MorseCode);
@@ -391,25 +425,51 @@ void loop()
     PADDLE2State = digitalRead(PADDLE2_PIN);
 
     if (PADDLE1State != PADDLE1StateLast)
+
     {
+        LastTimeMS = CurrentTimeMS;
+        CurrentTimeMS = millis();
         PADDLE1StateLast = PADDLE1State;
 
-        if (PADDLE1State == 0 && ProgramState == 2)
+        if (PADDLE1State == 0)
         {
-            Keyboard.press(' ');
-        }
-        else
-        {
-            Keyboard.release(' ');
-        }
 
-        if (PADDLE1State == 0 && ProgramState == 3)
-        {
-            Keyboard.press('a');
+            switch (ProgramState)
+            {
+            case 2:
+                DitTimeMS = CurrentTimeMS - LastTimeMS;
+                if (DitTimeMS > 0 && DitTimeMS < AvgDitTimeMS * 3)
+                {
+                    AvgDitTimeMS = (AvgDitTimeMS + DitTimeMS) / 2;
+                }
+                else
+                {
+                    AvgDahTimeMS = (AvgDahTimeMS + DitTimeMS) / 2;
+                }
+                Keyboard.press(' '); // this is a straight key in Mainia Mode
+                break;
+            case 3:
+                Keyboard.press('a'); // this is a paddle in Mainia Mode
+                break;
+            case 4:
+                Keyboard.press(KEY_LEFT_CTRL); // this is a paddle or straight key in VBand Mode
+                break;
+            }
         }
         else
         {
-            Keyboard.release('a');
+            switch (ProgramState)
+            {
+            case 2:
+                Keyboard.release(' ');
+                break;
+            case 3:
+                Keyboard.release('a');
+                break;
+            case 4:
+                Keyboard.release(KEY_LEFT_CTRL);
+                break;
+            }
         }
     }
 
@@ -419,15 +479,30 @@ void loop()
 
         if (PADDLE2State == 0)
         {
-            Keyboard.press('s');
+            switch (ProgramState)
+            {
+            case 3:
+                Keyboard.press('b');
+                break;
+            case 4:
+                Keyboard.press(KEY_RIGHT_CTRL);
+                break;
+            }
         }
         else
         {
-            Keyboard.release('s');
+            switch (ProgramState)
+            {
+            case 3:
+                Keyboard.release('b');
+                break;
+            case 4:
+                Keyboard.release(KEY_RIGHT_CTRL);
+                break;
+            }
         }
     }
 
-    // this was needed to debounce the paddle
-    delay(20);
+    delay(20); // this was needed to debounce the paddle
 
 } //  End of the Main Loop
