@@ -8,8 +8,7 @@ I've never used anysort of microcontroller before and this was a fun project to 
 I know you can buy similar devices for around 25 bucks, but what's the fun in that? This was less than $15 in parts and I leaned something new. win,win.
 
 Heres a short vid showing it in action:
-![](./images/youtubethumb.png)([Youtube](https://youtu.be/_rCv8DJaf1s?si%253D-IjkBr2QlI_x5GSh))
-
+[CW2USBKB on Youtube](https://youtu.be/_rCv8DJaf1s?si%253D-IjkBr2QlI_x5GSh)
 # The Plan
 
 Using a seeeduino to convert CW contact closures to keyboard presses. 
