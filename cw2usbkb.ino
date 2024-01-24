@@ -1,5 +1,7 @@
-#include "Keyboard.h"
+#include <Keyboard.h>
 #include <string>
+#include <Wire.h>
+#include <U8x8lib.h>
 #define PADDLE1_PIN 6 // Pin 6, tip, Single Key
 #define PADDLE2_PIN 7 // Pin 7, Dash, ring, Paddle
 #define CUR_VERSION "1.1"
@@ -16,13 +18,19 @@
 //
 //*****************************************************************
 
+// Define Pin out for I2C control of OLED display (Seeed expansion board)
+U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(/* clock=*/PIN_WIRE_SCL, /* data=*/PIN_WIRE_SDA, /* reset=*/U8X8_PIN_NONE);
+
 char MorseCode[100] = "";
 char ConvertString[100] = "";
+char u8x8String[16];
 int CurrentTimeMS = 0;
 int LastTimeMS = 0;
 int DitTimeMS = 0;
-int AvgDitTimeMS = 0;
+int AvgDitTimeMS = 100;
 int AvgDahTimeMS = 0;
+int AvgltrTimeMS = 0;
+int AvgspaceTimeMS = 0;
 
 static uint8_t ProgramState = 0; // Inital State is 0, 1 is Setup Mode, 2 is Straight Key Mode, 3 is Paddle Mode
 static uint8_t PADDLE1StateLast;
@@ -312,6 +320,15 @@ void setup()
     // setup LED for for output
     pinMode(LED_BUILTIN, OUTPUT);
 
+    // initialize SEEED OLED display
+    u8x8.begin();
+    // set number from 1 to 3, the screen word will rotary 180
+    u8x8.setFlipMode(1);
+    // set the contrast for the display
+    u8x8.setContrast(255);
+    // set the font for the display
+    u8x8.setFont(u8x8_font_chroma48medium8_r);
+
     PADDLE1State = PADDLE1StateLast = digitalRead(PADDLE1_PIN);
     PADDLE2State = PADDLE2StateLast = digitalRead(PADDLE2_PIN);
     LastTimeMS = CurrentTimeMS = millis();
@@ -346,6 +363,8 @@ void setup_mode() // Choose between Straight Key or Paddle and Mainia or VBand M
                     Convert_char_to_Morse(ConvertString, MorseCode);
                     blink_led_morse(MorseCode);
                     Keyboard.println("Straight Key Mainina Mode");
+                    u8x8.setCursor(0, 2);
+                    u8x8.print("  SK Mainia  ");
                 }
                 else
                 {
@@ -354,6 +373,8 @@ void setup_mode() // Choose between Straight Key or Paddle and Mainia or VBand M
                     Convert_char_to_Morse(ConvertString, MorseCode);
                     blink_led_morse(MorseCode);
                     Keyboard.println("Straight Key VBand Mode");
+                    u8x8.setCursor(0, 2);
+                    u8x8.print("  SK VBand   ");
                 }
             }
         }
@@ -377,6 +398,8 @@ void setup_mode() // Choose between Straight Key or Paddle and Mainia or VBand M
                     Convert_char_to_Morse(ConvertString, MorseCode);
                     blink_led_morse(MorseCode);
                     Keyboard.println("Paddle Mainina Mode");
+                    u8x8.setCursor(0, 2);
+                    u8x8.print("  Paddle Vband  ");
                 }
                 else
                 {
@@ -385,6 +408,8 @@ void setup_mode() // Choose between Straight Key or Paddle and Mainia or VBand M
                     Convert_char_to_Morse(ConvertString, MorseCode);
                     blink_led_morse(MorseCode);
                     Keyboard.println("Paddle VBand Mode");
+                    u8x8.setCursor(0, 2);
+                    u8x8.print("  Paddle Vband  ");
                 }
             }
         }
@@ -404,6 +429,10 @@ void loop()
         Keyboard.print(ConvertString);
         Keyboard.print(" - CW2USBKB");
         Keyboard.println(CUR_VERSION);
+
+        u8x8.setCursor(0, 0);
+        sprintf(u8x8String, "CW2USBKB %s", CUR_VERSION);
+        u8x8.print(u8x8String);
         Convert_char_to_Morse(ConvertString, MorseCode);
         blink_led_morse(MorseCode);
         ProgramState = 1;
@@ -416,6 +445,8 @@ void loop()
         Keyboard.println("Select Mainia mode with a short press (<250ms) of a Straight key or Right paddle");
         Keyboard.println("Longer press (>250ms) will select VBand mode");
         strcpy(ConvertString, "s or p");
+        u8x8.setCursor(0, 2);
+        u8x8.print("  Select Mode  ");
         Convert_char_to_Morse(ConvertString, MorseCode);
         blink_led_morse(MorseCode);
         setup_mode();
@@ -438,15 +469,18 @@ void loop()
             {
             case 2:
                 DitTimeMS = CurrentTimeMS - LastTimeMS;
-                if (DitTimeMS > 0 && DitTimeMS < AvgDitTimeMS * 3)
+                if (DitTimeMS > 0 && DitTimeMS < AvgDahTimeMS)
                 {
-                    AvgDitTimeMS = (AvgDitTimeMS + DitTimeMS) / 2;
+                    AvgltrTimeMS = (AvgltrTimeMS + DitTimeMS) / 2;
                 }
-                else
+                else if (DitTimeMS > AvgDitTimeMS && DitTimeMS < AvgDahTimeMS * 3)
                 {
-                    AvgDahTimeMS = (AvgDahTimeMS + DitTimeMS) / 2;
+                    AvgspaceTimeMS = (AvgspaceTimeMS + DitTimeMS) / 2;
                 }
                 Keyboard.press(' '); // this is a straight key in Mainia Mode
+                u8x8.setCursor(0, 4);
+                sprintf(u8x8String, "in %d btw %d", AvgltrTimeMS, AvgspaceTimeMS);
+                u8x8.print(u8x8String);
                 break;
             case 3:
                 Keyboard.press('a'); // this is a paddle in Mainia Mode
@@ -461,7 +495,19 @@ void loop()
             switch (ProgramState)
             {
             case 2:
+                DitTimeMS = CurrentTimeMS - LastTimeMS;
+                if (DitTimeMS > 0 && DitTimeMS < AvgDitTimeMS * 3)
+                {
+                    AvgDitTimeMS = (AvgDitTimeMS + DitTimeMS) / 2;
+                }
+                else
+                {
+                    AvgDahTimeMS = (AvgDahTimeMS + DitTimeMS) / 2;
+                }
                 Keyboard.release(' ');
+                u8x8.setCursor(0, 6);
+                sprintf(u8x8String, "Dit %d Dah %d", AvgDitTimeMS, AvgDahTimeMS);
+                u8x8.print(u8x8String);
                 break;
             case 3:
                 Keyboard.release('a');
